@@ -25,6 +25,7 @@ interface GestaoErpDashboardProps {
   onAddTransaction: (tx: FinanceTransactionRecord) => void;
   onOpenRegulatoryAudit: () => void;
   onOpenMultiModalCenter: () => void;
+  onOpenArchitecture?: () => void;
   language: AppLanguage;
 }
 
@@ -33,6 +34,7 @@ export const GestaoErpDashboard: React.FC<GestaoErpDashboardProps> = ({
   onAddTransaction,
   onOpenRegulatoryAudit,
   onOpenMultiModalCenter,
+  onOpenArchitecture,
   language,
 }) => {
   const { profile } = useAuth();
@@ -105,6 +107,16 @@ export const GestaoErpDashboard: React.FC<GestaoErpDashboardProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            {onOpenArchitecture && (
+              <button
+                onClick={onOpenArchitecture}
+                className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-indigo-300 font-bold text-xs sm:text-sm border border-slate-700 transition-all"
+                title={pt ? 'Ver Geografia, Planta Baixa e Ecossistema (openDCIM, OpenMRS, OpenBoxes)' : 'View Hospital Geography, Floorplan & Ecosystem'}
+              >
+                <Building2 className="w-4 h-4 text-indigo-400" />
+                <span>{pt ? 'Planta & Ecossistema' : 'Floorplan & Ecosystem'}</span>
+              </button>
+            )}
             <button
               onClick={() => setIsNewTxModalOpen(true)}
               className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs sm:text-sm shadow-lg transition-all active:scale-95"

@@ -12,6 +12,7 @@ import {
   Gamepad2,
   FileCode2,
   UserCheck,
+  Building2,
 } from 'lucide-react';
 import { AppPersona, AIEngineMode, AppLanguage } from '../types';
 import { UserRole } from '../services/firestoreSync';
@@ -93,6 +94,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Gamepad2 className="w-4 h-4 text-cyan-400" />
               <span>{pt ? 'Hospital Tycoon' : 'Hospital Tycoon'}</span>
+            </button>
+            <button
+              onClick={() => setPersona('hospital_architecture')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+                persona === 'hospital_architecture'
+                  ? 'bg-cyan-900 text-cyan-200 shadow-xs font-bold'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title={pt ? 'Geografia, planta baixa do hospital e ecossistema open source (openDCIM, OpenMRS, OpenBoxes, Odoo)' : 'Hospital geography, multi-floor blueprint and open source ecosystem'}
+            >
+              <Building2 className="w-4 h-4 text-cyan-400" />
+              <span>{pt ? 'Planta & Infra' : 'Floorplan & Infra'}</span>
             </button>
             <button
               onClick={() => setPersona('professional_acs')}

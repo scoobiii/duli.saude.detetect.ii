@@ -44,6 +44,7 @@ import { MultimodalDiagnosticCenter } from './components/ProfessionalView/Multim
 import { RegulatoryValidationSuite } from './components/ProfessionalView/RegulatoryValidationSuite';
 import { HospitalGameView } from './components/HospitalGame/HospitalGameView';
 import { DynamicReadmeView } from './components/DynamicReadmeView';
+import { HospitalArchitectureBlueprint } from './components/HospitalArchitecture/HospitalArchitectureBlueprint';
 import { useAuth } from './context/AuthContext';
 import {
   UserRole,
@@ -353,6 +354,7 @@ export default function App() {
                 orders={maintenanceOrders}
                 onAddOrder={(ord) => setMaintenanceOrders([ord, ...maintenanceOrders])}
                 onUpdateOrderStatus={handleUpdateOrderStatus}
+                onOpenArchitecture={() => setPersona('hospital_architecture')}
                 language={language}
               />
             )}
@@ -369,6 +371,7 @@ export default function App() {
                   setPersona('professional_acs');
                   setProTab('multimodal');
                 }}
+                onOpenArchitecture={() => setPersona('hospital_architecture')}
                 language={language}
               />
             )}
@@ -383,6 +386,24 @@ export default function App() {
               onOpenMultiModalCenter={() => {
                 setPersona('professional_acs');
                 setProTab('multimodal');
+              }}
+              onOpenFullArchitecture={() => setPersona('hospital_architecture')}
+            />
+          </div>
+        )}
+
+        {/* Hospital Geography, Multi-Floor Blueprint & Open Source Ecosystem Mode */}
+        {persona === 'hospital_architecture' && (
+          <div className="animate-fade-in space-y-6">
+            <HospitalArchitectureBlueprint
+              language={language}
+              onOpenMultiModalCenter={() => {
+                setPersona('professional_acs');
+                setProTab('multimodal');
+              }}
+              onOpenRoleDashboard={(r) => {
+                setRole(r as any);
+                setPersona('role_dashboard');
               }}
             />
           </div>

@@ -20,6 +20,7 @@ import {
   Layers,
   CheckCircle2,
   AlertTriangle,
+  Building2,
 } from 'lucide-react';
 import {
   HospitalGameState,
@@ -54,11 +55,13 @@ import { AppLanguage } from '../../types';
 interface HospitalGameProps {
   language: AppLanguage;
   onOpenMultiModalCenter?: () => void;
+  onOpenFullArchitecture?: () => void;
 }
 
 export const HospitalGameView: React.FC<HospitalGameProps> = ({
   language,
   onOpenMultiModalCenter,
+  onOpenFullArchitecture,
 }) => {
   const pt = language === 'pt';
 
@@ -448,6 +451,17 @@ export const HospitalGameView: React.FC<HospitalGameProps> = ({
               <Trophy className="w-3.5 h-3.5 text-amber-300" />
               <span>{pt ? 'Missões & Conquistas' : 'Quests & Achievements'}</span>
             </button>
+
+            {onOpenFullArchitecture && (
+              <button
+                onClick={onOpenFullArchitecture}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-cyan-950 hover:bg-cyan-900 text-cyan-200 border border-cyan-800 text-xs font-bold transition-all shadow-md shadow-cyan-950/40"
+                title={pt ? 'Abrir Geografia, Planta Baixa e Ecossistema Open Source (openDCIM, OpenMRS, OpenBoxes)' : 'Open Hospital Architecture & Open Source Ecosystem'}
+              >
+                <Building2 className="w-3.5 h-3.5 text-cyan-400" />
+                <span>{pt ? 'Planta & Infra Open Source' : 'Architecture & Infra'}</span>
+              </button>
+            )}
           </div>
 
           <button

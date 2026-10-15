@@ -22,6 +22,7 @@ interface ManutencaoDashboardProps {
   orders: MaintenanceOrderRecord[];
   onAddOrder: (order: MaintenanceOrderRecord) => void;
   onUpdateOrderStatus: (id: string, status: MaintenanceOrderRecord['status']) => void;
+  onOpenArchitecture?: () => void;
   language: AppLanguage;
 }
 
@@ -29,6 +30,7 @@ export const ManutencaoDashboard: React.FC<ManutencaoDashboardProps> = ({
   orders,
   onAddOrder,
   onUpdateOrderStatus,
+  onOpenArchitecture,
   language,
 }) => {
   const { profile } = useAuth();
@@ -108,13 +110,26 @@ export const ManutencaoDashboard: React.FC<ManutencaoDashboardProps> = ({
             </div>
           </div>
 
-          <button
-            onClick={() => setIsNewOrderModalOpen(true)}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white text-stone-900 hover:bg-amber-50 font-black text-xs sm:text-sm shadow-lg transition-all active:scale-95 shrink-0"
-          >
-            <PlusCircle className="w-4 h-4 text-amber-700" />
-            <span>{pt ? 'Abrir Ordem de Serviço (+)' : 'New Service Order (+)'}</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {onOpenArchitecture && (
+              <button
+                onClick={onOpenArchitecture}
+                className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-stone-900/90 hover:bg-stone-800 text-amber-200 border border-amber-500/50 font-bold text-xs sm:text-sm shadow-md transition-all active:scale-95"
+                title={pt ? 'Ver Planta Baixa, Racks DCIM e Redes NetBox' : 'View Floorplan, DCIM Racks and NetBox Networks'}
+              >
+                <Building2 className="w-4 h-4 text-amber-400" />
+                <span>{pt ? 'Planta & openDCIM' : 'Floorplan & openDCIM'}</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => setIsNewOrderModalOpen(true)}
+              className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white text-stone-900 hover:bg-amber-50 font-black text-xs sm:text-sm shadow-lg transition-all active:scale-95 shrink-0"
+            >
+              <PlusCircle className="w-4 h-4 text-amber-700" />
+              <span>{pt ? 'Abrir Ordem de Serviço (+)' : 'New Service Order (+)'}</span>
+            </button>
+          </div>
         </div>
       </div>
 
