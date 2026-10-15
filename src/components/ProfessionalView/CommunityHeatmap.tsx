@@ -23,11 +23,11 @@ export const CommunityHeatmap: React.FC<HeatmapProps> = ({
   onDispatchACSAlert,
 }) => {
   const pt = language === 'pt';
-  const [selectedClusterId, setSelectedClusterId] = useState<string>(clusters[1]?.id || 'b2');
+  const [selectedClusterId, setSelectedClusterId] = useState<string>(clusters?.[1]?.id || clusters?.[0]?.id || 'b2');
   const [filterRisk, setFilterRisk] = useState<string>('all');
   const [alertSuccessMessage, setAlertSuccessMessage] = useState<string | null>(null);
 
-  const selectedCluster = clusters.find((c) => c.id === selectedClusterId) || clusters[0];
+  const selectedCluster = clusters?.find((c) => c.id === selectedClusterId) || clusters?.[0];
 
   const filteredClusters = clusters.filter((c) => {
     if (filterRisk === 'all') return true;

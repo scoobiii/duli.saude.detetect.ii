@@ -185,7 +185,7 @@ export const HospitalFloorMap: React.FC<FloorMapProps> = ({
                       >
                         <span>{s.avatarEmoji}</span>
                         <span className="text-[10px] font-bold truncate max-w-[80px]">
-                          {s.name.split(' ')[1] || s.name}
+                          {s?.name?.split(' ')?.[1] || s?.name || 'Staff'}
                         </span>
                       </span>
                     ))

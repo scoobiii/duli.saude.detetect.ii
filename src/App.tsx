@@ -79,7 +79,10 @@ export default function App() {
   const [triages, setTriages] = useState<PatientTriage[]>(() => {
     try {
       const saved = localStorage.getItem('duli_triages');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch {}
     return INITIAL_TRIAGES;
   });
@@ -87,7 +90,10 @@ export default function App() {
   const [admissions, setAdmissions] = useState<HospitalAdmissionRecord[]>(() => {
     try {
       const saved = localStorage.getItem('duli_admissions');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch {}
     return INITIAL_ADMISSIONS;
   });
@@ -95,7 +101,10 @@ export default function App() {
   const [maintenanceOrders, setMaintenanceOrders] = useState<MaintenanceOrderRecord[]>(() => {
     try {
       const saved = localStorage.getItem('duli_maintenance_orders');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch {}
     return INITIAL_MAINTENANCE_ORDERS;
   });
@@ -103,7 +112,10 @@ export default function App() {
   const [finances, setFinances] = useState<FinanceTransactionRecord[]>(() => {
     try {
       const saved = localStorage.getItem('duli_finances');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch {}
     return INITIAL_FINANCE_RECORDS;
   });
@@ -111,7 +123,10 @@ export default function App() {
   const [clusters, setClusters] = useState<NeighborhoodCluster[]>(() => {
     try {
       const saved = localStorage.getItem('duli_clusters');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch {}
     return INITIAL_CLUSTERS;
   });

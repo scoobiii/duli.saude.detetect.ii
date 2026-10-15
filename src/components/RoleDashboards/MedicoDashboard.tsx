@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Stethoscope,
   FileText,
@@ -16,10 +16,16 @@ import {
   ChevronRight,
   ClipboardCheck,
   Building,
+  Clock,
+  Calendar,
+  Microscope,
+  History,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { PatientTriage, AppLanguage, AIEngineMode } from '../../types';
 import { HospitalAdmissionRecord } from '../../services/firestoreSync';
+import { INITIAL_TRIAGES } from '../../data/mockCommunityData';
+import { PatientHealthTimeline } from './PatientHealthTimeline';
 
 interface MedicoDashboardProps {
   triages: PatientTriage[];
@@ -43,7 +49,15 @@ export const MedicoDashboard: React.FC<MedicoDashboardProps> = ({
   const { profile } = useAuth();
   const pt = language === 'pt';
 
-  const [selectedTriage, setSelectedTriage] = useState<PatientTriage>(triages[0]);
+  const safeTriages = triages && triages.length > 0 ? triages : INITIAL_TRIAGES;
+  const [selectedTriageId, setSelectedTriageId] = useState<string>(safeTriages[0]?.id || 'DULI-094812');
+  const [activePepTab, setActivePepTab] = useState<'timeline' | 'consultation' | 'diagnostics'>('timeline');
+  const [searchPatientTerm, setSearchPatientTerm] = useState('');
+
+  const selectedTriage = useMemo(() => {
+    return safeTriages.find((t) => t.id === selectedTriageId) || safeTriages[0];
+  }, [safeTriages, selectedTriageId]);
+
   const [clinicalNote, setClinicalNote] = useState('');
   const [prescriptions, setPrescriptions] = useState<string[]>([
     'Dipirona 500mg VO 6/6h em caso de febre',
@@ -60,22 +74,34 @@ export const MedicoDashboard: React.FC<MedicoDashboardProps> = ({
   };
 
   const handleApplyClinicalDecision = (decision: 'alta' | 'enfermaria' | 'uti') => {
+    if (!selectedTriage) return;
     if (decision === 'alta') {
       onUpdateTriageStatus(selectedTriage.id, 'resolved');
-      setDecisionFeedback('✅ Paciente liberado com alta médica, atestado emitido e orientações domiciliares.');
+      setDecisionFeedback(pt ? '✅ Paciente liberado com alta médica, atestado emitido e orientações domiciliares.' : '✅ Patient discharged home with instructions.');
     } else if (decision === 'enfermaria') {
       onUpdateTriageStatus(selectedTriage.id, 'in_observation');
-      setDecisionFeedback('🏥 Encaminhado para leito de internação em enfermaria respiratória com suporte clínico.');
+      setDecisionFeedback(pt ? '🏥 Encaminhado para leito de internação em enfermaria respiratória com suporte clínico.' : '🏥 Transferred to respiratory ward bed.');
     } else {
       onUpdateTriageStatus(selectedTriage.id, 'referred_upa');
-      setDecisionFeedback('🚨 Vaga solicitada com urgência em leito de Terapia Intensiva (UTI Respiratória).');
+      setDecisionFeedback(pt ? '🚨 Vaga solicitada com urgência em leito de Terapia Intensiva (UTI Respiratória).' : '🚨 Emergency ICU bed reservation requested.');
     }
 
     setTimeout(() => setDecisionFeedback(null), 4000);
   };
 
-  const criticalQueue = triages.filter((t) => t.triageColor === 'red' || t.triageColor === 'orange');
-  const moderateQueue = triages.filter((t) => t.triageColor === 'yellow');
+  const filteredQueue = useMemo(() => {
+    if (!searchPatientTerm.trim()) return safeTriages;
+    const term = searchPatientTerm.toLowerCase();
+    return safeTriages.filter(
+      (t) =>
+        t.name.toLowerCase().includes(term) ||
+        t.id.toLowerCase().includes(term) ||
+        (t.susCardNumber && t.susCardNumber.toLowerCase().includes(term)) ||
+        t.neighborhood.toLowerCase().includes(term)
+    );
+  }, [safeTriages, searchPatientTerm]);
+
+  const criticalQueue = safeTriages.filter((t) => t.triageColor === 'red' || t.triageColor === 'orange');
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -100,8 +126,8 @@ export const MedicoDashboard: React.FC<MedicoDashboardProps> = ({
               </h2>
               <p className="text-emerald-100 text-xs sm:text-sm mt-0.5">
                 {pt
-                  ? 'Avaliação diagnóstica multimodal, laudos de Raio-X / TC / ECG, prescrição digital e regulação de leitos UTI.'
-                  : 'Multi-modal diagnostic evaluation, CXR/CT/ECG analysis, digital prescription and ICU bed allocation.'}
+                  ? 'Feed cronológico de triagens, internações e laudos diagnósticos, prescrição digital e conduta clínica.'
+                  : 'Chronological feed of triages, admissions, and diagnostic reports, digital prescriptions, and clinical decisions.'}
               </p>
             </div>
           </div>
@@ -125,7 +151,7 @@ export const MedicoDashboard: React.FC<MedicoDashboardProps> = ({
         </div>
       )}
 
-      {/* Main Grid: Patient Queue on Left, Full EHR / Clinical Station on Right */}
+      {/* Main Grid: Patient Queue on Left, Full EHR / Timeline / Clinical Station on Right */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Triage Patients Queue (Manchester priority) */}
         <div className="lg:col-span-4 space-y-4">
@@ -139,8 +165,20 @@ export const MedicoDashboard: React.FC<MedicoDashboardProps> = ({
               </span>
             </div>
 
+            {/* Quick search input for patients */}
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchPatientTerm}
+                onChange={(e) => setSearchPatientTerm(e.target.value)}
+                placeholder={pt ? 'Buscar paciente ou Cartão SUS...' : 'Search patient or SUS...'}
+                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+
             <div className="space-y-2 max-h-[620px] overflow-y-auto pr-1">
-              {triages.map((triage) => {
+              {filteredQueue.map((triage) => {
                 const isSelected = selectedTriage.id === triage.id;
                 const isRed = triage.triageColor === 'red';
                 const isOrange = triage.triageColor === 'orange';
@@ -149,7 +187,7 @@ export const MedicoDashboard: React.FC<MedicoDashboardProps> = ({
                 return (
                   <button
                     key={triage.id}
-                    onClick={() => setSelectedTriage(triage)}
+                    onClick={() => setSelectedTriageId(triage.id)}
                     className={`w-full text-left p-3.5 rounded-2xl border transition-all ${
                       isSelected
                         ? 'border-emerald-600 bg-emerald-50/60 ring-2 ring-emerald-500/30 shadow-xs'
@@ -189,10 +227,10 @@ export const MedicoDashboard: React.FC<MedicoDashboardProps> = ({
           </div>
         </div>
 
-        {/* Right Column: Active PEP Prontuário Eletrônico */}
+        {/* Right Column: Active PEP Prontuário Eletrônico & Timeline */}
         <div className="lg:col-span-8 space-y-4">
-          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-6">
-            {/* Header of EHR Document */}
+          {/* Header of Active EHR Document */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
               <div>
                 <span className="text-xs font-bold text-slate-400 font-mono">
@@ -216,27 +254,31 @@ export const MedicoDashboard: React.FC<MedicoDashboardProps> = ({
                       : 'bg-yellow-400 text-slate-900'
                   }`}
                 >
-                  Classificação: {selectedTriage.triageColor} ({selectedTriage.triageLevel})
+                  {selectedTriage.triageColor} ({selectedTriage.triageLevel})
                 </span>
               </div>
             </div>
 
-            {/* Vitals & Bio-signals Bar */}
+            {/* Vitals & Bio-signals Quick Snapshot */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center">
                 <span className="text-[11px] font-bold text-slate-400 uppercase">SpO2 (Oxímetro)</span>
-                <div className={`text-xl font-black mt-1 ${
-                  (selectedTriage.vitals?.spo2 || 98) < 92 ? 'text-rose-600' : 'text-slate-900'
-                }`}>
+                <div
+                  className={`text-xl font-black mt-1 ${
+                    (selectedTriage.vitals?.spo2 || 98) < 92 ? 'text-rose-600' : 'text-slate-900'
+                  }`}
+                >
                   {selectedTriage.vitals?.spo2 || 96}%
                 </div>
               </div>
 
               <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center">
                 <span className="text-[11px] font-bold text-slate-400 uppercase">Temperatura</span>
-                <div className={`text-xl font-black mt-1 ${
-                  (selectedTriage.vitals?.temperature || 36.5) >= 38 ? 'text-amber-600' : 'text-slate-900'
-                }`}>
+                <div
+                  className={`text-xl font-black mt-1 ${
+                    (selectedTriage.vitals?.temperature || 36.5) >= 38 ? 'text-amber-600' : 'text-slate-900'
+                  }`}
+                >
                   {selectedTriage.vitals?.temperature || 37.2}°C
                 </div>
               </div>
@@ -256,125 +298,210 @@ export const MedicoDashboard: React.FC<MedicoDashboardProps> = ({
               </div>
             </div>
 
-            {/* Clinical Summary & Rationale */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-              <h4 className="font-bold text-slate-900 text-xs uppercase">
-                Síntese Clínica & Raciocínio Algorítmico ({selectedTriage.evaluatedByEngine})
-              </h4>
-              <p className="text-xs text-slate-700 leading-relaxed font-mono">
-                {selectedTriage.clinicalRationale || selectedTriage.summary}
-              </p>
-            </div>
+            {/* Nav Tabs: Timeline vs Consultation vs Diagnostics */}
+            <div className="flex items-center gap-2 border-b border-slate-100 pt-1 pb-1">
+              <button
+                onClick={() => setActivePepTab('timeline')}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-xs transition-all ${
+                  activePepTab === 'timeline'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <Clock className="w-4 h-4" />
+                <span>{pt ? 'Linha do Tempo Clínica (Feed Vertical)' : 'Patient Health Timeline'}</span>
+              </button>
 
-            {/* Multi-modal Studies Snapshot */}
-            <div className="border border-slate-200 rounded-2xl p-4 bg-teal-50/40 space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="font-black text-teal-950 text-xs sm:text-sm flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-teal-700" />
+              <button
+                onClick={() => setActivePepTab('consultation')}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-xs transition-all ${
+                  activePepTab === 'consultation'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <Stethoscope className="w-4 h-4" />
+                <span>{pt ? 'Consulta & Prescrição' : 'Consultation & Prescriptions'}</span>
+              </button>
+
+              <button
+                onClick={() => setActivePepTab('diagnostics')}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-xs transition-all ${
+                  activePepTab === 'diagnostics'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <Layers className="w-4 h-4" />
+                <span>{pt ? 'Laudos Radiológicos & Labs' : 'Imaging & Labs'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* TAB 1: CHRONOLOGICAL VERTICAL HEALTH TIMELINE */}
+          {activePepTab === 'timeline' && (
+            <PatientHealthTimeline
+              patient={selectedTriage}
+              allTriages={safeTriages}
+              allAdmissions={admissions}
+              language={language}
+              onOpenMultiModalCenter={onOpenMultiModalCenter}
+            />
+          )}
+
+          {/* TAB 2: CONSULTATION & CLINICAL CONDUCT */}
+          {activePepTab === 'consultation' && (
+            <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-6">
+              {/* Quick Timeline Preview Banner */}
+              <div className="flex items-center justify-between p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs">
+                <div className="flex items-center gap-2">
+                  <History className="w-4 h-4 text-emerald-700" />
+                  <span className="font-bold text-emerald-950">
+                    {pt
+                      ? 'Histórico Longitudinal: Visualização de triagens anteriores, internações e laudos disponível.'
+                      : 'Longitudinal Record: Past triages, admissions, and diagnostic results feed available.'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setActivePepTab('timeline')}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[11px] shadow-2xs"
+                >
+                  {pt ? 'Ver Feed Completo' : 'View Full Feed'}
+                </button>
+              </div>
+
+              {/* Clinical Summary & Rationale */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                <h4 className="font-bold text-slate-900 text-xs uppercase">
+                  Síntese Clínica & Raciocínio Algorítmico ({selectedTriage.evaluatedByEngine})
+                </h4>
+                <p className="text-xs text-slate-700 leading-relaxed font-mono">
+                  {selectedTriage.clinicalRationale || selectedTriage.summary}
+                </p>
+              </div>
+
+              {/* Digital Prescriptions Section */}
+              <div className="space-y-3">
+                <h4 className="font-bold text-slate-900 text-xs uppercase flex items-center gap-2">
+                  <Pill className="w-4 h-4 text-emerald-600" />
+                  <span>Prescrição Médica Hospitalar (SUS)</span>
+                </h4>
+
+                <div className="space-y-2">
+                  {prescriptions.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs"
+                    >
+                      <span className="font-semibold text-slate-800">{item}</span>
+                      <button
+                        onClick={() => setPrescriptions(prescriptions.filter((_, i) => i !== idx))}
+                        className="text-slate-400 hover:text-rose-600 font-bold px-2"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newPrescriptionInput}
+                    onChange={(e) => setNewPrescriptionInput(e.target.value)}
+                    placeholder="Adicionar novo medicamento ou conduta..."
+                    className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <button
+                    onClick={handleAddPrescription}
+                    className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs"
+                  >
+                    Adicionar
+                  </button>
+                </div>
+              </div>
+
+              {/* Conduct & Disposition Actions */}
+              <div className="pt-4 border-t border-slate-200 space-y-3">
+                <span className="text-xs font-bold text-slate-500 uppercase">
+                  Definição de Conduta & Destino do Paciente
+                </span>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <button
+                    onClick={() => handleApplyClinicalDecision('alta')}
+                    className="flex flex-col items-center justify-center p-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition-all font-bold text-xs"
+                  >
+                    <UserCheck className="w-5 h-5 mb-1 text-emerald-600" />
+                    <span>Dar Alta Hospitalar</span>
+                    <span className="text-[10px] text-emerald-600 font-normal">Tratamento domiciliar</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleApplyClinicalDecision('enfermaria')}
+                    className="flex flex-col items-center justify-center p-3 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-all font-bold text-xs"
+                  >
+                    <Building className="w-5 h-5 mb-1 text-amber-600" />
+                    <span>Internação em Enfermaria</span>
+                    <span className="text-[10px] text-amber-600 font-normal">Observação e O2 estável</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleApplyClinicalDecision('uti')}
+                    className="flex flex-col items-center justify-center p-3 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 transition-all font-bold text-xs"
+                  >
+                    <AlertTriangle className="w-5 h-5 mb-1 text-rose-600" />
+                    <span>Regular Leito de UTI</span>
+                    <span className="text-[10px] text-rose-600 font-normal">Vaga crítica respiratória</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: DIAGNOSTICS & IMAGING */}
+          {activePepTab === 'diagnostics' && (
+            <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h4 className="font-black text-slate-900 text-sm flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-emerald-600" />
                   <span>Exames Radiológicos & Biomarcadores Vinculados ao PEP</span>
                 </h4>
                 <button
                   onClick={onOpenMultiModalCenter}
                   className="text-xs font-bold text-teal-700 hover:text-teal-900 flex items-center gap-1"
                 >
-                  <span>Ver Bounding Boxes e Cortes Tomográficos</span>
+                  <span>Abrir Bounding Boxes e Cortes Tomográficos</span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </button>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                <div className="p-3 rounded-xl bg-white border border-teal-200 shadow-2xs">
-                  <span className="text-[10px] font-bold text-teal-700">CXR DIGITAL</span>
+                <div className="p-3.5 rounded-2xl bg-teal-50/60 border border-teal-200 shadow-2xs">
+                  <span className="text-[10px] font-bold text-teal-700 uppercase">CXR Digital</span>
                   <p className="font-bold text-slate-900 mt-1">Infiltrado Basal Bilateral</p>
-                  <span className="text-[11px] text-slate-500">Brixia Score: 12/18</span>
+                  <span className="text-[11px] text-slate-500">Brixia Score: 14/18 (Comprometimento Severo)</span>
                 </div>
-                <div className="p-3 rounded-xl bg-white border border-teal-200 shadow-2xs">
-                  <span className="text-[10px] font-bold text-teal-700">TC DE TÓRAX</span>
+                <div className="p-3.5 rounded-2xl bg-teal-50/60 border border-teal-200 shadow-2xs">
+                  <span className="text-[10px] font-bold text-teal-700 uppercase">TC de Tórax HRCT</span>
                   <p className="font-bold text-slate-900 mt-1">Vidro Fosco Multilobar</p>
-                  <span className="text-[11px] text-slate-500">CORADS 5 • Acometimento &gt; 50%</span>
+                  <span className="text-[11px] text-slate-500">CORADS 5 • Acometimento &gt; 55%</span>
                 </div>
-                <div className="p-3 rounded-xl bg-white border border-teal-200 shadow-2xs">
-                  <span className="text-[10px] font-bold text-teal-700">ECG 12D & LABS</span>
-                  <p className="font-bold text-slate-900 mt-1">PCR: 74 mg/L • Dímero: 1680</p>
-                  <span className="text-[11px] text-slate-500">Sem supradesnível ST</span>
+                <div className="p-3.5 rounded-2xl bg-teal-50/60 border border-teal-200 shadow-2xs">
+                  <span className="text-[10px] font-bold text-teal-700 uppercase">ECG 12D & Labs</span>
+                  <p className="font-bold text-slate-900 mt-1">PCR: 74.2 mg/L • Dímero-D: 1680</p>
+                  <span className="text-[11px] text-slate-500">Taquicardia Sinusal • Sem supra ST</span>
                 </div>
               </div>
-            </div>
 
-            {/* Digital Prescriptions Section */}
-            <div className="space-y-3">
-              <h4 className="font-bold text-slate-900 text-xs uppercase flex items-center gap-2">
-                <Pill className="w-4 h-4 text-emerald-600" />
-                <span>Prescrição Médica Hospitalar (SUS)</span>
-              </h4>
-
-              <div className="space-y-2">
-                {prescriptions.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-                    <span className="font-semibold text-slate-800">{item}</span>
-                    <button
-                      onClick={() => setPrescriptions(prescriptions.filter((_, i) => i !== idx))}
-                      className="text-slate-400 hover:text-rose-600 font-bold px-2"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newPrescriptionInput}
-                  onChange={(e) => setNewPrescriptionInput(e.target.value)}
-                  placeholder="Adicionar novo medicamento ou conduta..."
-                  className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-                <button
-                  onClick={handleAddPrescription}
-                  className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs"
-                >
-                  Adicionar
-                </button>
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+                <span className="font-bold text-slate-700 uppercase text-[11px]">Rastreabilidade & Validação Regulatória</span>
+                <p className="text-slate-600 leading-relaxed font-mono text-[11px]">
+                  Imagens processadas com calibração DICOM padrão ANVISA RDC 657/2022 (SaMD Classe II) e modelos validados sobre os bancos internacionais BIMCV-COVID19+ e COVID-QU-Ex.
+                </p>
               </div>
             </div>
-
-            {/* Conduct & Disposition Actions */}
-            <div className="pt-4 border-t border-slate-200 space-y-3">
-              <span className="text-xs font-bold text-slate-500 uppercase">
-                Definição de Conduta & Destino do Paciente
-              </span>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <button
-                  onClick={() => handleApplyClinicalDecision('alta')}
-                  className="flex flex-col items-center justify-center p-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition-all font-bold text-xs"
-                >
-                  <UserCheck className="w-5 h-5 mb-1 text-emerald-600" />
-                  <span>Dar Alta Hospitalar</span>
-                  <span className="text-[10px] text-emerald-600 font-normal">Tratamento domiciliar</span>
-                </button>
-
-                <button
-                  onClick={() => handleApplyClinicalDecision('enfermaria')}
-                  className="flex flex-col items-center justify-center p-3 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-all font-bold text-xs"
-                >
-                  <Building className="w-5 h-5 mb-1 text-amber-600" />
-                  <span>Internação em Enfermaria</span>
-                  <span className="text-[10px] text-amber-600 font-normal">Observação e O2 estável</span>
-                </button>
-
-                <button
-                  onClick={() => handleApplyClinicalDecision('uti')}
-                  className="flex flex-col items-center justify-center p-3 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 transition-all font-bold text-xs"
-                >
-                  <AlertTriangle className="w-5 h-5 mb-1 text-rose-600" />
-                  <span>Regular Leito de UTI</span>
-                  <span className="text-[10px] text-rose-600 font-normal">Vaga crítica respiratória</span>
-                </button>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
