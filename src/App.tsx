@@ -43,6 +43,7 @@ import { NewTriageModal } from './components/NewTriageModal';
 import { MultimodalDiagnosticCenter } from './components/ProfessionalView/MultimodalDiagnosticCenter';
 import { RegulatoryValidationSuite } from './components/ProfessionalView/RegulatoryValidationSuite';
 import { HospitalGameView } from './components/HospitalGame/HospitalGameView';
+import { DynamicReadmeView } from './components/DynamicReadmeView';
 
 export default function App() {
   const [persona, setPersona] = useState<AppPersona>('hospital_tycoon');
@@ -181,6 +182,13 @@ export default function App() {
               language={language}
               onSaveTriage={handleSaveTriage}
             />
+          </div>
+        )}
+
+        {/* Dynamic README & Live CI/CD Pipeline Mode */}
+        {persona === 'readme_ci' && (
+          <div className="animate-fade-in space-y-6">
+            <DynamicReadmeView language={language} />
           </div>
         )}
 

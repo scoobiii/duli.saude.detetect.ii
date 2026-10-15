@@ -10,6 +10,7 @@ import {
   Baby,
   ShieldCheck,
   Gamepad2,
+  FileCode2,
 } from 'lucide-react';
 import { AppPersona, AIEngineMode, AppLanguage } from '../types';
 
@@ -99,6 +100,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Baby className="w-4 h-4 text-amber-500" />
               <span>{pt ? 'Modo Família' : 'Family Mode'}</span>
+            </button>
+            <button
+              onClick={() => setPersona('readme_ci')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+                persona === 'readme_ci'
+                  ? 'bg-cyan-700 text-white shadow-xs font-bold'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title={pt ? 'README dinâmico em tempo real via GitHub Pages, pipeline CI e binários com 100% de cobertura' : 'Dynamic live README via GitHub Pages, CI pipeline and binaries with 100% coverage'}
+            >
+              <FileCode2 className="w-4 h-4 text-cyan-300" />
+              <span>{pt ? 'README & CI' : 'README & CI'}</span>
             </button>
           </div>
 

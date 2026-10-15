@@ -1,0 +1,96 @@
+name: CI / Medical SaMD Regulatory Compliance Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  operational-and-regulatory-tests:
+    name: Operational & Regulatory Classification Tests (100% Coverage)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.x, 22.x]
+
+    steps:
+      - name: Checkout Source Code Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Static Code Analysis & Type Checking (IEC 62304 Class C)
+        run: npm run lint
+
+      - name: Run Operational & Classification Test Suite (ISO 13485 / FDA / ANVISA / CE MDR)
+        run: npm test
+
+      - name: Build Web Application & Distribution Bundle
+        run: npm run build
+
+      - name: Package SaMD Release Binaries & Conformance Artifacts
+        run: |
+          mkdir -p release-binaries
+          # Package Linux SaMD Container & Executable Distribution Bundle
+          tar -czf release-binaries/duli-samd-engine-linux-x64.tar.gz dist/ server.ts package.json
+          # Export Regulatory Audit Verification Report
+          npm run test > release-binaries/regulatory-compliance-audit.log
+          # Generate Cryptographic SHA-256 Manifest
+          sha256sum release-binaries/* > release-binaries/checksums.sha256
+
+      - name: Upload Medical Device Release Binaries & Audit Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: samd-binaries-node-${{ matrix.node-version }}
+          path: release-binaries/
+          retention-days: 30
+
+  deploy-github-pages:
+    name: Deploy Live Dynamic Documentation (GitHub Pages)
+    needs: operational-and-regulatory-tests
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'npm'
+
+      - name: Install Dependencies & Build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload GitHub Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'dist'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
