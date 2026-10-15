@@ -44,9 +44,30 @@ import { MultimodalDiagnosticCenter } from './components/ProfessionalView/Multim
 import { RegulatoryValidationSuite } from './components/ProfessionalView/RegulatoryValidationSuite';
 import { HospitalGameView } from './components/HospitalGame/HospitalGameView';
 import { DynamicReadmeView } from './components/DynamicReadmeView';
+import { useAuth } from './context/AuthContext';
+import {
+  UserRole,
+  HospitalAdmissionRecord,
+  MaintenanceOrderRecord,
+  FinanceTransactionRecord,
+  INITIAL_ADMISSIONS,
+  INITIAL_MAINTENANCE_ORDERS,
+  INITIAL_FINANCE_RECORDS,
+  saveTriageToFirestore,
+  saveAdmissionToFirestore,
+} from './services/firestoreSync';
+import { ClienteDashboard } from './components/RoleDashboards/ClienteDashboard';
+import { RecepcionistaDashboard } from './components/RoleDashboards/RecepcionistaDashboard';
+import { MedicoDashboard } from './components/RoleDashboards/MedicoDashboard';
+import { ManutencaoDashboard } from './components/RoleDashboards/ManutencaoDashboard';
+import { GestaoErpDashboard } from './components/RoleDashboards/GestaoErpDashboard';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from './services/firebase';
 
 export default function App() {
-  const [persona, setPersona] = useState<AppPersona>('hospital_tycoon');
+  const { role, setRole, user } = useAuth();
+
+  const [persona, setPersona] = useState<AppPersona>('role_dashboard');
   const [engineMode, setEngineMode] = useState<AIEngineMode>('local_agent');
   const [language, setLanguage] = useState<AppLanguage>('pt');
 
@@ -60,6 +81,30 @@ export default function App() {
       if (saved) return JSON.parse(saved);
     } catch {}
     return INITIAL_TRIAGES;
+  });
+
+  const [admissions, setAdmissions] = useState<HospitalAdmissionRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem('duli_admissions');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return INITIAL_ADMISSIONS;
+  });
+
+  const [maintenanceOrders, setMaintenanceOrders] = useState<MaintenanceOrderRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem('duli_maintenance_orders');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return INITIAL_MAINTENANCE_ORDERS;
+  });
+
+  const [finances, setFinances] = useState<FinanceTransactionRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem('duli_finances');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return INITIAL_FINANCE_RECORDS;
   });
 
   const [clusters, setClusters] = useState<NeighborhoodCluster[]>(() => {
@@ -86,24 +131,67 @@ export default function App() {
       setServerOnline(res.status === 'ok');
       setGeminiConfigured(res.geminiConfigured);
       if (res.geminiConfigured) {
-        // If Gemini is ready, we can default to it or let user keep local
         setEngineMode('gemini_flash');
       }
     });
   }, []);
 
-  // Sync to localStorage
+  // Sync state to localStorage
   useEffect(() => {
     try {
       localStorage.setItem('duli_triages', JSON.stringify(triages));
+      localStorage.setItem('duli_admissions', JSON.stringify(admissions));
+      localStorage.setItem('duli_maintenance_orders', JSON.stringify(maintenanceOrders));
+      localStorage.setItem('duli_finances', JSON.stringify(finances));
     } catch {}
-  }, [triages]);
+  }, [triages, admissions, maintenanceOrders, finances]);
+
+  // Real-time Firestore synchronization if user authenticated
+  useEffect(() => {
+    if (!user) return;
+
+    try {
+      const unsubscribeTriages = onSnapshot(collection(db, 'triages'), (snapshot) => {
+        if (!snapshot.empty) {
+          const remote = snapshot.docs.map((d) => d.data() as PatientTriage);
+          setTriages((prev) => {
+            const ids = new Set(remote.map((r) => r.id));
+            const localOnly = prev.filter((p) => !ids.has(p.id));
+            return [...remote, ...localOnly];
+          });
+        }
+      }, (error) => {
+        console.warn('Triages snapshot error:', error);
+      });
+
+      const unsubscribeAdmissions = onSnapshot(collection(db, 'hospital_admissions'), (snapshot) => {
+        if (!snapshot.empty) {
+          const remote = snapshot.docs.map((d) => d.data() as HospitalAdmissionRecord);
+          setAdmissions((prev) => {
+            const ids = new Set(remote.map((r) => r.id));
+            const localOnly = prev.filter((p) => !ids.has(p.id));
+            return [...remote, ...localOnly];
+          });
+        }
+      }, (error) => {
+        console.warn('Admissions snapshot error:', error);
+      });
+
+      return () => {
+        unsubscribeTriages();
+        unsubscribeAdmissions();
+      };
+    } catch (err) {
+      console.warn('Real-time listener setup notice:', err);
+    }
+  }, [user]);
 
   const pt = language === 'pt';
 
   // Handler to add a new triage
-  const handleSaveTriage = (newTriage: PatientTriage) => {
+  const handleSaveTriage = async (newTriage: PatientTriage) => {
     setTriages((prev) => [newTriage, ...prev]);
+    saveTriageToFirestore(newTriage).catch(console.warn);
 
     // Update active / suspected cluster numbers
     setClusters((prev) =>
@@ -132,13 +220,33 @@ export default function App() {
     );
   };
 
+  const handleUpdateAdmissionStage = (id: string, stage: HospitalAdmissionRecord['stage']) => {
+    setAdmissions((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, stage } : a))
+    );
+  };
+
+  const handleUpdateOrderStatus = (id: string, status: MaintenanceOrderRecord['status']) => {
+    setMaintenanceOrders((prev) =>
+      prev.map((o) => (o.id === id ? { ...o, status } : o))
+    );
+  };
+
   const handleExportData = () => {
-    const dataStr = JSON.stringify({ triages, clusters, stats, exportedAt: new Date().toISOString() }, null, 2);
+    const dataStr = JSON.stringify({
+      triages,
+      admissions,
+      maintenanceOrders,
+      finances,
+      clusters,
+      stats,
+      exportedAt: new Date().toISOString(),
+    }, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `duli-health-surveillance-${Date.now()}.json`;
+    link.download = `duli-hospital-data-${Date.now()}.json`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -157,10 +265,116 @@ export default function App() {
         setLanguage={setLanguage}
         serverOnline={serverOnline}
         geminiConfigured={geminiConfigured}
+        onOpenRoleDashboard={(r) => {
+          setRole(r);
+          setPersona('role_dashboard');
+        }}
       />
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Role-Based Dashboard View (Cliente, Recepcionista, Médico, Manutenção, Gestão ERP) */}
+        {persona === 'role_dashboard' && (
+          <div className="animate-fade-in space-y-6">
+            {/* Quick Role Switcher Banner */}
+            <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black text-slate-500 uppercase tracking-wider font-mono">
+                  {pt ? 'PERFIL ATIVO:' : 'ACTIVE ROLE:'}
+                </span>
+                <span className="px-2.5 py-1 rounded-xl text-xs font-black bg-indigo-100 text-indigo-900 border border-indigo-200 uppercase">
+                  {role}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                {[
+                  { r: 'cliente', label: pt ? 'Cliente / Paciente' : 'Patient' },
+                  { r: 'recepcionista', label: pt ? 'Recepcionista' : 'Receptionist' },
+                  { r: 'medico', label: pt ? 'Médico Clínico' : 'Doctor' },
+                  { r: 'manutencao', label: pt ? 'Manutenção / Eng.' : 'Maintenance' },
+                  { r: 'gestao', label: pt ? 'Gestão / ERP' : 'Management' },
+                ].map((item) => (
+                  <button
+                    key={item.r}
+                    onClick={() => setRole(item.r as any)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      role === item.r
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Individual Role Dashboard */}
+            {role === 'cliente' && (
+              <ClienteDashboard
+                triages={triages}
+                admissions={admissions}
+                language={language}
+                onOpenNewTriage={() => setIsNewTriageOpen(true)}
+                onViewDiagnosticCenter={() => {
+                  setPersona('professional_acs');
+                  setProTab('multimodal');
+                }}
+              />
+            )}
+
+            {role === 'recepcionista' && (
+              <RecepcionistaDashboard
+                admissions={admissions}
+                onAddAdmission={(adm) => setAdmissions([adm, ...admissions])}
+                onUpdateAdmissionStage={handleUpdateAdmissionStage}
+                language={language}
+              />
+            )}
+
+            {role === 'medico' && (
+              <MedicoDashboard
+                triages={triages}
+                admissions={admissions}
+                onUpdateTriageStatus={handleUpdateStatus}
+                onUpdateAdmissionStage={handleUpdateAdmissionStage}
+                onOpenMultiModalCenter={() => {
+                  setPersona('professional_acs');
+                  setProTab('multimodal');
+                }}
+                engineMode={engineMode}
+                language={language}
+              />
+            )}
+
+            {role === 'manutencao' && (
+              <ManutencaoDashboard
+                orders={maintenanceOrders}
+                onAddOrder={(ord) => setMaintenanceOrders([ord, ...maintenanceOrders])}
+                onUpdateOrderStatus={handleUpdateOrderStatus}
+                language={language}
+              />
+            )}
+
+            {role === 'gestao' && (
+              <GestaoErpDashboard
+                finances={finances}
+                onAddTransaction={(tx) => setFinances([tx, ...finances])}
+                onOpenRegulatoryAudit={() => {
+                  setPersona('professional_acs');
+                  setProTab('regulatory');
+                }}
+                onOpenMultiModalCenter={() => {
+                  setPersona('professional_acs');
+                  setProTab('multimodal');
+                }}
+                language={language}
+              />
+            )}
+          </div>
+        )}
+
         {/* Gamified Hospital & Clinic Management Tycoon Mode */}
         {persona === 'hospital_tycoon' && (
           <div className="animate-fade-in space-y-6">

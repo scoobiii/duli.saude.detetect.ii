@@ -111,7 +111,7 @@ export interface EpidemiologicalReport {
   generatedBy: 'local-agent' | 'gemini-3.8-flash';
 }
 
-export type AppPersona = 'hospital_tycoon' | 'professional_acs' | 'child_citizen' | 'readme_ci';
+export type AppPersona = 'hospital_tycoon' | 'professional_acs' | 'child_citizen' | 'readme_ci' | 'role_dashboard';
 export type AIEngineMode = 'local_agent' | 'gemini_flash';
 export type AppLanguage = 'pt' | 'en';
 

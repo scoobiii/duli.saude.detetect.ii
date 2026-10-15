@@ -1,0 +1,132 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Role verification from user profile doc
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isStaff() {
+      return isSignedIn() && (
+        getUserRole() == 'medico' ||
+        getUserRole() == 'recepcionista' ||
+        getUserRole() == 'manutencao' ||
+        getUserRole() == 'gestao'
+      );
+    }
+
+    function isDoctor() {
+      return isSignedIn() && (getUserRole() == 'medico' || getUserRole() == 'gestao');
+    }
+
+    function isReceptionist() {
+      return isSignedIn() && (getUserRole() == 'recepcionista' || getUserRole() == 'gestao');
+    }
+
+    function isMaintenance() {
+      return isSignedIn() && (getUserRole() == 'manutencao' || getUserRole() == 'gestao');
+    }
+
+    function isManagement() {
+      return isSignedIn() && getUserRole() == 'gestao';
+    }
+
+    // 1. Users collection
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isStaff());
+      allow list: if isStaff();
+      allow create: if isSignedIn() && request.auth.uid == userId &&
+        incoming().keys().hasAll(['uid', 'name', 'email', 'role']) &&
+        incoming().uid == request.auth.uid &&
+        incoming().name is string && incoming().name.size() <= 100 &&
+        incoming().email is string && incoming().email.size() <= 120 &&
+        incoming().role in ['cliente', 'recepcionista', 'medico', 'manutencao', 'gestao'];
+      allow update: if isSignedIn() && (request.auth.uid == userId || isManagement()) &&
+        incoming().uid == existing().uid &&
+        incoming().role in ['cliente', 'recepcionista', 'medico', 'manutencao', 'gestao'];
+      allow delete: if isManagement();
+    }
+
+    // 2. Triages collection
+    match /triages/{triageId} {
+      allow get: if isSignedIn() && (
+        isStaff() ||
+        (resource.data.patientUid == request.auth.uid)
+      );
+      allow list: if isSignedIn() && (
+        isStaff() ||
+        (resource.data.patientUid == request.auth.uid)
+      );
+      allow create: if isSignedIn() && isValidId(triageId) &&
+        incoming().keys().hasAll(['id', 'patientName', 'triageColor', 'status']) &&
+        incoming().id is string && incoming().id.size() <= 128 &&
+        incoming().patientName is string && incoming().patientName.size() <= 100 &&
+        incoming().triageColor in ['green', 'yellow', 'orange', 'red'];
+      allow update: if isSignedIn() && (
+        isStaff() ||
+        (resource.data.patientUid == request.auth.uid)
+      );
+      allow delete: if isManagement();
+    }
+
+    // 3. Hospital Admissions workflow
+    match /hospital_admissions/{admissionId} {
+      allow get: if isSignedIn() && (
+        isStaff() ||
+        (resource.data.patientUid == request.auth.uid)
+      );
+      allow list: if isSignedIn() && (
+        isStaff() ||
+        (resource.data.patientUid == request.auth.uid)
+      );
+      allow create: if isSignedIn() && isStaff() && isValidId(admissionId) &&
+        incoming().keys().hasAll(['id', 'patientName', 'stage', 'priority', 'admittedAt']) &&
+        incoming().id is string && incoming().id.size() <= 128;
+      allow update: if isSignedIn() && isStaff();
+      allow delete: if isManagement();
+    }
+
+    // 4. Maintenance & Engineering orders
+    match /maintenance_orders/{orderId} {
+      allow read: if isSignedIn() && (isMaintenance() || isStaff());
+      allow create: if isSignedIn() && isStaff() && isValidId(orderId) &&
+        incoming().keys().hasAll(['id', 'equipmentName', 'equipmentType', 'priority', 'status']) &&
+        incoming().id is string && incoming().id.size() <= 128;
+      allow update: if isSignedIn() && (isMaintenance() || isManagement());
+      allow delete: if isManagement();
+    }
+
+    // 5. Hospital Finances & ERP ledger
+    match /hospital_finances/{recordId} {
+      allow read: if isSignedIn() && (isManagement() || getUserRole() == 'recepcionista');
+      allow create, update: if isSignedIn() && isManagement() && isValidId(recordId);
+      allow delete: if isManagement();
+    }
+  }
+}

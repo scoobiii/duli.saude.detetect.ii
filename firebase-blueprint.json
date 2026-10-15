@@ -1,0 +1,135 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with role-based access control (RBAC)",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 120 },
+        "role": {
+          "type": "string",
+          "enum": ["cliente", "recepcionista", "medico", "manutencao", "gestao"]
+        },
+        "specialty": { "type": "string", "maxLength": 100 },
+        "crmOrCoren": { "type": "string", "maxLength": 30 },
+        "susCardNumber": { "type": "string", "maxLength": 30 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["uid", "name", "email", "role"]
+    },
+    "PatientTriageDoc": {
+      "title": "PatientTriageDoc",
+      "description": "Clinical and community triage record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "patientName": { "type": "string", "maxLength": 100 },
+        "patientUid": { "type": "string", "maxLength": 128 },
+        "age": { "type": "number" },
+        "gender": { "type": "string", "enum": ["M", "F", "Outro"] },
+        "neighborhood": { "type": "string", "maxLength": 100 },
+        "triageColor": { "type": "string", "enum": ["green", "yellow", "orange", "red"] },
+        "triageLevel": { "type": "string", "enum": ["low", "moderate", "high", "critical"] },
+        "score": { "type": "number" },
+        "symptoms": { "type": "array" },
+        "vitals": { "type": "object" },
+        "summary": { "type": "string", "maxLength": 500 },
+        "clinicalRationale": { "type": "string", "maxLength": 2000 },
+        "status": {
+          "type": "string",
+          "enum": ["pending_visit", "in_observation", "referred_upa", "home_recovery", "resolved"]
+        },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "patientName", "triageColor", "status"]
+    },
+    "HospitalAdmission": {
+      "title": "HospitalAdmission",
+      "description": "Active patient workflow admission ticket",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "patientName": { "type": "string", "maxLength": 100 },
+        "patientUid": { "type": "string", "maxLength": 128 },
+        "susCard": { "type": "string", "maxLength": 30 },
+        "stage": {
+          "type": "string",
+          "enum": ["reception", "triage", "exams", "doctor_consult", "ward", "icu", "surgery", "discharged"]
+        },
+        "priority": { "type": "string", "enum": ["red", "orange", "yellow", "green", "blue"] },
+        "chiefComplaint": { "type": "string", "maxLength": 250 },
+        "assignedDoctor": { "type": "string", "maxLength": 100 },
+        "assignedRoom": { "type": "string", "maxLength": 60 },
+        "diagnosis": { "type": "string", "maxLength": 500 },
+        "aihBilledAmount": { "type": "number" },
+        "admittedAt": { "type": "string" },
+        "dischargedAt": { "type": "string" }
+      },
+      "required": ["id", "patientName", "stage", "priority", "admittedAt"]
+    },
+    "MaintenanceOrder": {
+      "title": "MaintenanceOrder",
+      "description": "Hospital engineering and biomedical equipment maintenance order",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "equipmentName": { "type": "string", "maxLength": 100 },
+        "equipmentType": {
+          "type": "string",
+          "enum": ["tomografo", "raio_x", "ecg", "ventilador", "usina_o2", "gerador_eletrico", "autoclave", "ar_pressao_negativa"]
+        },
+        "locationRoom": { "type": "string", "maxLength": 60 },
+        "priority": { "type": "string", "enum": ["critica", "alta", "media", "preventiva"] },
+        "status": { "type": "string", "enum": ["aberta", "em_andamento", "calibrado", "concluida"] },
+        "description": { "type": "string", "maxLength": 500 },
+        "reportedBy": { "type": "string", "maxLength": 100 },
+        "technicianAssigned": { "type": "string", "maxLength": 100 },
+        "nextCalibrationDate": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "equipmentName", "equipmentType", "priority", "status"]
+    },
+    "HospitalFinanceRecord": {
+      "title": "HospitalFinanceRecord",
+      "description": "Hospital ERP financial ledger record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "type": { "type": "string", "enum": ["receita_sus", "receita_convenio", "despesa_rh", "despesa_insumos", "despesa_manutencao"] },
+        "description": { "type": "string", "maxLength": 200 },
+        "amount": { "type": "number" },
+        "category": { "type": "string", "maxLength": 100 },
+        "referenceDocument": { "type": "string", "maxLength": 100 },
+        "recordedBy": { "type": "string", "maxLength": 100 },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "type", "description", "amount", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles with role assignment"
+    },
+    "/triages/{triageId}": {
+      "schema": "PatientTriageDoc",
+      "description": "Triage clinical records"
+    },
+    "/hospital_admissions/{admissionId}": {
+      "schema": "HospitalAdmission",
+      "description": "Patient hospital workflow admissions"
+    },
+    "/maintenance_orders/{orderId}": {
+      "schema": "MaintenanceOrder",
+      "description": "Clinical engineering maintenance orders"
+    },
+    "/hospital_finances/{recordId}": {
+      "schema": "HospitalFinanceRecord",
+      "description": "ERP hospital financial transactions"
+    }
+  }
+}

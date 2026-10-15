@@ -11,8 +11,11 @@ import {
   ShieldCheck,
   Gamepad2,
   FileCode2,
+  UserCheck,
 } from 'lucide-react';
 import { AppPersona, AIEngineMode, AppLanguage } from '../types';
+import { UserRole } from '../services/firestoreSync';
+import { UserProfileBar } from './UserProfileBar';
 
 interface NavbarProps {
   persona: AppPersona;
@@ -23,6 +26,7 @@ interface NavbarProps {
   setLanguage: (l: AppLanguage) => void;
   serverOnline: boolean;
   geminiConfigured: boolean;
+  onOpenRoleDashboard: (role: UserRole) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -34,6 +38,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   setLanguage,
   serverOnline,
   geminiConfigured,
+  onOpenRoleDashboard,
 }) => {
   const pt = language === 'pt';
 
@@ -63,8 +68,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Center: Mode / Persona Switcher (Gamified Tycoon vs Professional ACS vs Family Child) */}
+          {/* Center: Mode / Persona Switcher */}
           <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto">
+            <button
+              onClick={() => setPersona('role_dashboard')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+                persona === 'role_dashboard'
+                  ? 'bg-indigo-700 text-white shadow-xs font-bold'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title={pt ? 'Acessar painel do usuário por perfil (Cliente, Recepcionista, Médico, Manutenção, Gestão)' : 'Access role-based dashboard'}
+            >
+              <UserCheck className="w-4 h-4 text-indigo-300" />
+              <span>{pt ? 'Painel por Perfil' : 'Role Dashboard'}</span>
+            </button>
             <button
               onClick={() => setPersona('hospital_tycoon')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
@@ -115,8 +132,17 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </div>
 
-          {/* Right Controls: AI Engine Switch, Language & SAMU */}
+          {/* Right Controls: User Profile RBAC, AI Engine Switch, Language & SAMU */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* User Profile Bar with 1-click Role Switcher & Google Login */}
+            <UserProfileBar
+              language={language}
+              onOpenRoleDashboard={(r) => {
+                onOpenRoleDashboard(r);
+                setPersona('role_dashboard');
+              }}
+            />
+
             {/* AI Engine Switcher */}
             <div className="relative hidden md:flex items-center bg-slate-50 p-1 rounded-xl border border-slate-200">
               <button
