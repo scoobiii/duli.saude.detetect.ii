@@ -1,0 +1,6 @@
+{
+  "name": "DULI Health & COVID-19 Surveillance Platform",
+  "description": "Plataforma profissional e comunitária de triagem clínica, detecção inteligente e vigilância epidemiológica de saúde local com suporte a Agente Local e Gemini IA.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
