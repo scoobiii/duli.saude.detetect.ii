@@ -84,7 +84,7 @@ export const UserProfileBar: React.FC<UserProfileBarProps> = ({ language, onOpen
 
           <div className="hidden sm:block">
             <div className="flex items-center gap-1.5 leading-none">
-              <span className="text-xs font-black text-slate-900">{profile.name.split(' ')[0]}</span>
+              <span className="text-xs font-black text-slate-900">{profile?.name ? profile.name.split(' ')[0] : 'Usuário'}</span>
               <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-slate-100 text-slate-600 uppercase">
                 {role}
               </span>

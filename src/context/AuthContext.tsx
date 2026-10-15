@@ -32,10 +32,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<AppUserProfile>(() => {
     try {
       const saved = localStorage.getItem('duli_active_profile');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object' && parsed.name && parsed.role) {
+          return parsed;
+        }
+      }
     } catch {}
-    return DEMO_USER_PROFILES[role];
+    return DEMO_USER_PROFILES[role] || DEMO_USER_PROFILES.gestao;
   });
+
+  const safeProfile = (profile && profile.name) ? profile : (DEMO_USER_PROFILES[role] || DEMO_USER_PROFILES.gestao);
 
   const [authLoading, setAuthLoading] = useState<boolean>(true);
 
@@ -144,7 +151,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider
       value={{
         user,
-        profile,
+        profile: safeProfile,
         role,
         isFirebaseAuthenticated: Boolean(user),
         setRole,

@@ -55,7 +55,7 @@ export const MedicoDashboard: React.FC<MedicoDashboardProps> = ({
   const [searchPatientTerm, setSearchPatientTerm] = useState('');
 
   const selectedTriage = useMemo(() => {
-    return safeTriages.find((t) => t.id === selectedTriageId) || safeTriages[0];
+    return safeTriages.find((t) => t.id === selectedTriageId) || safeTriages[0] || INITIAL_TRIAGES[0];
   }, [safeTriages, selectedTriageId]);
 
   const [clinicalNote, setClinicalNote] = useState('');
@@ -179,7 +179,7 @@ export const MedicoDashboard: React.FC<MedicoDashboardProps> = ({
 
             <div className="space-y-2 max-h-[620px] overflow-y-auto pr-1">
               {filteredQueue.map((triage) => {
-                const isSelected = selectedTriage.id === triage.id;
+                const isSelected = selectedTriage?.id === triage.id;
                 const isRed = triage.triageColor === 'red';
                 const isOrange = triage.triageColor === 'orange';
                 const isYellow = triage.triageColor === 'yellow';

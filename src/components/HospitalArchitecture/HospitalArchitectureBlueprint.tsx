@@ -445,7 +445,7 @@ export const HospitalArchitectureBlueprint: React.FC<HospitalArchitectureProps> 
                                 title={`${person.name} - ${pt ? person.currentActivityPt : person.currentActivityEn}`}
                               >
                                 <span>{person.avatarEmoji}</span>
-                                <span className="text-[11px] font-semibold">{person.name.split(' ')[0]}</span>
+                                <span className="text-[11px] font-semibold">{person?.name ? person.name.split(' ')[0] : 'Colaborador'}</span>
                               </div>
                             ))}
                           </div>

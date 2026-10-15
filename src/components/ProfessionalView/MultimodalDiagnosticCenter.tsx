@@ -179,7 +179,7 @@ export const MultimodalDiagnosticCenter: React.FC<MultimodalProps> = ({
                 }`}
               >
                 <span>{st.modality}</span>
-                <span className="ml-1 opacity-70">({st.patientName.split(' ')[0]})</span>
+                <span className="ml-1 opacity-70">({st?.patientName ? st.patientName.split(' ')[0] : 'Paciente'})</span>
               </button>
             ))}
           </div>

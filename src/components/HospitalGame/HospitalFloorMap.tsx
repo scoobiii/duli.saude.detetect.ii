@@ -211,7 +211,7 @@ export const HospitalFloorMap: React.FC<FloorMapProps> = ({
                           className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-bold transition-all transform hover:scale-105 active:scale-95 shadow-sm ${badgeColor}`}
                           title={`${p.name} (${p.triageColor.toUpperCase()}) - Tratamento: ${p.treatmentProgress}% - Saúde: ${p.healthScore}%`}
                         >
-                          <span className="text-[10px] font-mono">{p.name.split(' ')[0]}</span>
+                          <span className="text-[10px] font-mono">{p?.name ? p.name.split(' ')[0] : 'Pac.'}</span>
                           <span className="text-[9px] opacity-80 font-mono">
                             {p.treatmentProgress}%
                           </span>

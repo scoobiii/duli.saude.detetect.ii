@@ -41,6 +41,12 @@ app.get('/api/status', (req, res) => {
   });
 });
 
+// API: Client Error Logger
+app.post('/api/client-error', (req, res) => {
+  console.error('>>> [BROWSER ERROR CAPTURED]:', JSON.stringify(req.body, null, 2));
+  res.json({ received: true });
+});
+
 // API: Clinical AI Triage Assessment (DULI / COVID-19 Detect II hybrid)
 app.post('/api/gemini/triage', async (req, res) => {
   try {

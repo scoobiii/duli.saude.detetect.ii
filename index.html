@@ -3,6 +3,53 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      window.addEventListener('error', function(event) {
+        var errInfo = {
+          message: event.message,
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno,
+          stack: event.error ? event.error.stack : null,
+          time: new Date().toISOString()
+        };
+        try {
+          fetch('/api/client-error', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(errInfo)
+          });
+        } catch(e) {}
+        var errDiv = document.getElementById('critical-boot-error');
+        if (!errDiv) {
+          errDiv = document.createElement('div');
+          errDiv.id = 'critical-boot-error';
+          errDiv.style = 'position:fixed;bottom:10px;left:10px;right:10px;background:#fee2e2;color:#991b1b;padding:12px;border:2px solid #ef4444;border-radius:12px;font-family:monospace;font-size:12px;z-index:99999;box-shadow:0 10px 15px -3px rgba(0,0,0,0.1);max-height:40vh;overflow:auto;';
+          if (document.body) {
+            document.body.appendChild(errDiv);
+          } else {
+            document.documentElement.appendChild(errDiv);
+          }
+        }
+        errDiv.innerHTML = '<strong>Erro de inicialização:</strong> ' + (event.message || 'Erro desconhecido') + '<br><small>' + (event.filename || '') + ':' + (event.lineno || '') + '</small><br><pre style="margin-top:6px;font-size:10px;white-space:pre-wrap;">' + (event.error && event.error.stack ? event.error.stack : '') + '</pre>';
+      });
+      window.addEventListener('unhandledrejection', function(event) {
+        var reason = event.reason;
+        var errInfo = {
+          unhandledRejection: true,
+          message: reason && reason.message ? reason.message : String(reason),
+          stack: reason && reason.stack ? reason.stack : null,
+          time: new Date().toISOString()
+        };
+        try {
+          fetch('/api/client-error', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(errInfo)
+          });
+        } catch(e) {}
+      });
+    </script>
     <title>DULI Health & COVID-19 Surveillance Platform</title>
     <meta name="description" content="Plataforma profissional e comunitária de triagem clínica, detecção inteligente e vigilância epidemiológica de saúde local com suporte a Agente Local e Gemini IA." />
     <meta property="og:title" content="DULI Health & COVID-19 Surveillance Platform" />

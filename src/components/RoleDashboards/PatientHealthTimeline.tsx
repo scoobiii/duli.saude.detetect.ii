@@ -28,6 +28,7 @@ import {
 import { PatientTriage, AppLanguage, ImagingStudy, LabBiomarkerPanel } from '../../types';
 import { HospitalAdmissionRecord } from '../../services/firestoreSync';
 import { INITIAL_IMAGING_STUDIES, INITIAL_LAB_PANELS } from '../../data/multimodalMedicalData';
+import { INITIAL_TRIAGES } from '../../data/mockCommunityData';
 
 export type TimelineEventType = 'triage' | 'admission' | 'diagnostic' | 'lab' | 'clinical_evolution';
 
@@ -85,6 +86,7 @@ export const PatientHealthTimeline: React.FC<PatientHealthTimelineProps> = ({
   onAddEvolution,
 }) => {
   const pt = language === 'pt';
+  const safePatient = patient || allTriages[0] || INITIAL_TRIAGES[0];
 
   const [filterType, setFilterType] = useState<TimelineEventType | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -95,7 +97,7 @@ export const PatientHealthTimeline: React.FC<PatientHealthTimelineProps> = ({
   const [evolutionCategory, setEvolutionCategory] = useState<'Evolução Médica' | 'Intercorrência Clínica' | 'Ajuste de Conduta' | 'Alta Programada'>('Evolução Médica');
   const [customEvolutions, setCustomEvolutions] = useState<TimelineEvent[]>(() => {
     try {
-      const saved = localStorage.getItem(`duli_evolutions_${patient.id}`);
+      const saved = localStorage.getItem(`duli_evolutions_${safePatient.id}`);
       if (saved) return JSON.parse(saved);
     } catch {}
     return [];
@@ -111,8 +113,8 @@ export const PatientHealthTimeline: React.FC<PatientHealthTimelineProps> = ({
     const now = new Date();
     const newEvent: TimelineEvent = {
       id: `evo-${Date.now()}`,
-      patientId: patient.id,
-      patientName: patient.name,
+      patientId: safePatient.id,
+      patientName: safePatient.name,
       timestamp: now.toISOString(),
       dateLabel: now.toLocaleDateString(pt ? 'pt-BR' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
       timeLabel: now.toLocaleTimeString(pt ? 'pt-BR' : 'en-US', { hour: '2-digit', minute: '2-digit' }),
@@ -131,7 +133,7 @@ export const PatientHealthTimeline: React.FC<PatientHealthTimelineProps> = ({
     const updated = [newEvent, ...customEvolutions];
     setCustomEvolutions(updated);
     try {
-      localStorage.setItem(`duli_evolutions_${patient.id}`, JSON.stringify(updated));
+      localStorage.setItem(`duli_evolutions_${safePatient.id}`, JSON.stringify(updated));
     } catch {}
 
     if (onAddEvolution) {
@@ -148,9 +150,9 @@ export const PatientHealthTimeline: React.FC<PatientHealthTimelineProps> = ({
 
     // 1. Triages matching this patient
     const relevantTriages = allTriages.filter(
-      (t) => t.id === patient.id || t.name.toLowerCase() === patient.name.toLowerCase()
+      (t) => t.id === safePatient.id || t.name.toLowerCase() === safePatient.name.toLowerCase()
     );
-    const triageSources = relevantTriages.length > 0 ? relevantTriages : [patient];
+    const triageSources = relevantTriages.length > 0 ? relevantTriages : [safePatient];
 
     triageSources.forEach((triage) => {
       const dt = new Date(triage.timestamp || Date.now());
@@ -204,12 +206,12 @@ export const PatientHealthTimeline: React.FC<PatientHealthTimelineProps> = ({
     // 2. Admissions matching this patient
     const relevantAdmissions = allAdmissions.filter((adm) => {
       const matchName =
-        adm.patientName.toLowerCase().includes(patient.name.toLowerCase()) ||
-        patient.name.toLowerCase().includes(adm.patientName.toLowerCase());
+        adm.patientName.toLowerCase().includes(safePatient.name.toLowerCase()) ||
+        safePatient.name.toLowerCase().includes(adm.patientName.toLowerCase());
       const matchCard =
         adm.susCard &&
-        patient.susCardNumber &&
-        adm.susCard.replace(/\D/g, '') === patient.susCardNumber.replace(/\D/g, '');
+        safePatient.susCardNumber &&
+        adm.susCard.replace(/\D/g, '') === safePatient.susCardNumber.replace(/\D/g, '');
       return matchName || matchCard;
     });
 
@@ -217,7 +219,7 @@ export const PatientHealthTimeline: React.FC<PatientHealthTimelineProps> = ({
       const dt = new Date(adm.admittedAt || Date.now());
       list.push({
         id: `adm-${adm.id}`,
-        patientId: patient.id,
+        patientId: safePatient.id,
         patientName: adm.patientName,
         timestamp: adm.admittedAt,
         dateLabel: dt.toLocaleDateString(pt ? 'pt-BR' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
@@ -256,16 +258,16 @@ export const PatientHealthTimeline: React.FC<PatientHealthTimelineProps> = ({
     // 3. Imaging Studies matching this patient
     const relevantStudies = imagingStudies.filter(
       (s) =>
-        s.patientId === patient.id ||
-        s.patientName.toLowerCase().includes(patient.name.toLowerCase()) ||
-        patient.name.toLowerCase().includes(s.patientName.toLowerCase())
+        s.patientId === safePatient.id ||
+        s.patientName.toLowerCase().includes(safePatient.name.toLowerCase()) ||
+        safePatient.name.toLowerCase().includes(s.patientName.toLowerCase())
     );
 
     relevantStudies.forEach((study) => {
       const dt = new Date(study.studyDate.replace(' ', 'T') || Date.now());
       list.push({
         id: `study-${study.id}`,
-        patientId: patient.id,
+        patientId: safePatient.id,
         patientName: study.patientName,
         timestamp: dt.toISOString(),
         dateLabel: dt.toLocaleDateString(pt ? 'pt-BR' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
@@ -293,13 +295,13 @@ export const PatientHealthTimeline: React.FC<PatientHealthTimelineProps> = ({
     });
 
     // 4. Lab Biomarker Panels matching this patient
-    const labPanel = labPanels[patient.id];
+    const labPanel = labPanels[safePatient.id];
     if (labPanel) {
       const dt = new Date(labPanel.collectedAt.replace(' ', 'T') || Date.now());
       list.push({
-        id: `lab-${patient.id}`,
-        patientId: patient.id,
-        patientName: patient.name,
+        id: `lab-${safePatient.id}`,
+        patientId: safePatient.id,
+        patientName: safePatient.name,
         timestamp: dt.toISOString(),
         dateLabel: dt.toLocaleDateString(pt ? 'pt-BR' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
         timeLabel: dt.toLocaleTimeString(pt ? 'pt-BR' : 'en-US', { hour: '2-digit', minute: '2-digit' }),
@@ -338,7 +340,7 @@ export const PatientHealthTimeline: React.FC<PatientHealthTimelineProps> = ({
     list.push(...customEvolutions);
 
     return list;
-  }, [patient, allTriages, allAdmissions, imagingStudies, labPanels, customEvolutions, pt]);
+  }, [safePatient, allTriages, allAdmissions, imagingStudies, labPanels, customEvolutions, pt]);
 
   // Filtering and Sorting
   const filteredEvents = useMemo(() => {
@@ -428,7 +430,7 @@ export const PatientHealthTimeline: React.FC<PatientHealthTimelineProps> = ({
                   {pt ? 'HISTÓRICO LONGITUDINAL' : 'LONGITUDINAL FEED'}
                 </span>
                 <span className="text-xs text-slate-300 font-mono">
-                  ID: #{patient.id} • {patient.name}
+                  ID: #{safePatient.id} • {safePatient.name}
                 </span>
               </div>
               <h3 className="text-xl sm:text-2xl font-black mt-0.5">
